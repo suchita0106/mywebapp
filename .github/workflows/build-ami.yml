@@ -1,0 +1,123 @@
+name: Integration Test and Build Packer AMI
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  run-tests:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4.4.0
+        with:
+          java-version: 21
+          distribution: temurin
+
+      - name: Install MySQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-server
+          sudo service mysql start
+
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL to start..."
+          for i in {1..30}; do
+            if mysqladmin ping --silent; then
+              echo "MySQL is up and running!"
+              break
+            fi
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+
+      - name: Run Unit Tests
+        run: |
+          mvn test -Dspring.datasource.url=${{ secrets.DB_URL }} \
+                   -Dspring.datasource.username=${{ secrets.DB_USERNAME }} \
+                   -Dspring.datasource.password=${{ secrets.DB_PASSWORD }} \
+                   -Dspring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver \
+                   -Dspring.jpa.hibernate.ddl-auto=update \
+                   -Dspring.datasource.hikari.connection-timeout=1000 \
+                   -Dserver.port=8080
+
+  build-artifact:
+    needs: run-tests
+    if: success() # Proceed only if integration tests pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4.4.0
+        with:
+          java-version: 21
+          distribution: temurin
+
+      - name: Build Application Artifact (Spring Boot WAR)
+        run: |
+          mvn clean package -DskipTests
+          cp target/webapp-0.0.1-SNAPSHOT.war ./webapp.war
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-artifact
+          path: ./webapp.war
+
+  build-ami:
+    needs: build-artifact
+    if: success() # Proceed only if artifact build succeeds
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download Application Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-artifact
+
+      - name: Set up Packer
+        uses: hashicorp/setup-packer@v3.1.0
+
+      - name: Generate AMI Name with Timestamp
+        id: ami_name
+        run: echo "AMI_NAME=webapp-ami-$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
+      - name: Initialize Packer
+        run: packer init packer/webapp.pkr.hcl
+
+      - name: Build Packer AMI
+        id: build_ami
+        run: |
+          packer build -var "app_war=./webapp.war" \
+                       -var "DB_USERNAME=${{ secrets.DB_USERNAME }}" \
+                       -var "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+                       -var "DB_URL=${{ secrets.DB_URL }}" \
+                       -var "SERVER_PORT=${{ secrets.SERVER_PORT }}" \
+                       -var "aws_region=${{ secrets.AWS_REGION }}" \
+                       -var "vpc_id=${{ secrets.VPC_ID }}" \
+                       -var "subnet_id=${{ secrets.SUBNET_ID }}" \
+                       -var "ami_name=${{ env.AMI_NAME }}" \
+                       -var "aws_demo_accountid=${{ secrets.DEMO_ACCOUNT_ID }}" \
+                       packer/webapp.pkr.hcl
