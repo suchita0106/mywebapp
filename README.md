@@ -1,4 +1,4 @@
-# Web Application - Health Check APII
+# Web Application - Health Check API
 
 This repository is part of the **CSYE6225 Network Strctures & Cloud Computing** course, designed to implement a cloud-native web application backend with a **Health Check API**. The application provides an endpoint to check the health of the service, particularly the database connection, and is built using **Spring Boot, Hibernate** with **Maven** for dependency management.
 
