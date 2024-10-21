@@ -131,7 +131,7 @@ build {
     ]
   }
 
-#  # Step 6: Run MySQL commands (ALTER USER, CREATE USER and DATABASE)
+  # Step 6: Run MySQL commands (ALTER USER, CREATE USER and DATABASE)
 #  provisioner "shell" {
 #    inline = [
 #      "sudo mysql -u ${var.DB_USERNAME} -e \"ALTER USER '${var.DB_USERNAME}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${var.DB_PASSWORD}';\""
