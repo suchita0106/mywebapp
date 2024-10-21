@@ -22,23 +22,8 @@ jobs:
           java-version: 21
           distribution: temurin
 
-      - name: Install MySQL
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-server
-          sudo service mysql start
-
-      - name: Wait for MySQL to be ready
-        run: |
-          echo "Waiting for MySQL to start..."
-          for i in {1..30}; do
-            if mysqladmin ping --silent; then
-              echo "MySQL is up and running!"
-              break
-            fi
-            echo "Waiting for MySQL..."
-            sleep 2
-          done
+      # Remove MySQL installation
+      # No need to install MySQL locally
 
       - name: Run Unit Tests
         run: |
