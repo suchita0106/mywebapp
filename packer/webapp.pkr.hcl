@@ -120,12 +120,20 @@ build {
     ]
   }
 
+  #  provisioner "shell" {
+  #    inline = [
+  #      "echo 'DB_USERNAME=${var.DB_USERNAME}' | sudo tee /opt/webapp/.env",
+  #      "echo 'DB_PASSWORD=${var.DB_PASSWORD}' | sudo tee -a /opt/webapp/.env",
+  #      "echo 'DB_URL=${var.DB_URL}' | sudo tee -a /opt/webapp/.env",
+  #      "echo 'SERVER_PORT=${var.SERVER_PORT}' | sudo tee -a /opt/webapp/.env",
+  #      "sudo chmod 600 /opt/webapp/.env",
+  #      "sudo chown csye6225:csye6225 /opt/webapp/.env"
+  #    ]
+  #  }
+
   provisioner "shell" {
     inline = [
-      "echo 'DB_USERNAME=${var.DB_USERNAME}' | sudo tee /opt/webapp/.env",
-      "echo 'DB_PASSWORD=${var.DB_PASSWORD}' | sudo tee -a /opt/webapp/.env",
-      "echo 'DB_URL=${var.DB_URL}' | sudo tee -a /opt/webapp/.env",
-      "echo 'SERVER_PORT=${var.SERVER_PORT}' | sudo tee -a /opt/webapp/.env",
+      "sudo touch /opt/webapp/.env",
       "sudo chmod 600 /opt/webapp/.env",
       "sudo chown csye6225:csye6225 /opt/webapp/.env"
     ]
